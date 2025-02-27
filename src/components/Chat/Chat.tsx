@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 
-import { SetStateAction, useCallback, useEffect, useState } from 'react';
+import { SetStateAction, useEffect, useState } from 'react';
 import { socket } from '../../socket';
 
 import ChatBox from './ChatBox';
@@ -10,81 +10,41 @@ import ChatRoom from './ChatRoom/ChatRoom';
 import chevron from '@icons/chevron_gray.svg';
 import goToBack from '@icons/goToBack.svg';
 
-import { ChatMsgs, ChatRooms } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
 import { userStore } from '@/stores/userState';
+
+import { onConnect, onDisconnect } from '@/utils/chat/handleSocket';
+import useChat from '@/hooks/chat/useChat';
 
 const Chat = () => {
   const [, setIsConnected] = useState(false);
   const [, setTransport] = useState('N/A');
-  const [chats, setChats] = useState<ChatRooms[]>([]);
   const { userState } = userStore();
-  const [newChat] = useState<ChatMsgs>();
 
-  const {
-    chatState,
-    chatRoomId,
-    setChatState,
-    setChatRoomId,
-    setChatNick,
-    chatNick,
-  } = chattingStore();
+  const { chats, getChatRooms, newRoom, closeChats } = useChat();
 
-  const onConnect = () => {
-    if (userState) {
-      setIsConnected(true);
-      setTransport(socket.io.engine.transport.name);
-
-      socket.io.engine.on(
-        'upgrade',
-        (transport: { name: SetStateAction<string> }) => {
-          setTransport(transport.name);
-        }
-      );
-    }
-  };
-
-  const onDisconnect = () => {
-    setIsConnected(false);
-    setTransport('N/A');
-  };
+  const { chatState, chatRoomId, setChatRoomId, setChatNick, chatNick } =
+    chattingStore();
 
   useEffect(() => {
+    if (!userState) return;
+
     if (socket.connected) {
-      onConnect();
+      onConnect(setIsConnected, setTransport);
     }
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
+    socket.on('connect', () => onConnect(setIsConnected, setTransport));
+    socket.on('disconnect', () => onDisconnect(setIsConnected, setTransport));
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
+      socket.off('connect');
+      socket.off('disconnect');
     };
-  }, []);
-
-  const getChatRooms = useCallback(() => {
-    socket.emit('getChatRooms');
-
-    socket.on('chatRooms', (rooms: ChatRooms[]) => {
-      setChats(rooms);
-    });
-
-    return () => {
-      socket.off('chatRooms');
-    };
-  }, [chatRoomId]);
+  }, [userState]);
 
   useEffect(() => {
     getChatRooms();
   }, []);
-
-  const newRoom = () => {
-    const newMsgId = newChat ? newChat.id : '';
-    const roomExist = chats.some((chat) => chat.roomId === newMsgId);
-
-    if (!roomExist) getChatRooms();
-  };
 
   useEffect(() => {
     const handleNewMessage = () => {
@@ -97,11 +57,6 @@ const Chat = () => {
       socket.off('newMessage', handleNewMessage);
     };
   }, [newRoom]);
-
-  const closeChats = () => {
-    setChatState(false);
-    setChatRoomId(null);
-  };
 
   useEffect(() => {
     const handleUserLeftRoom = () => {
