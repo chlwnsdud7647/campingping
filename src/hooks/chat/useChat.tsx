@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { socket } from '@/socket';
 import { ChatRooms, ChatMsgs } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
+import { CHAT } from '@/constants/chat/chatEvents';
 
 const useChat = () => {
   const [chats, setChats] = useState<ChatRooms[]>([]);
@@ -9,14 +10,14 @@ const useChat = () => {
   const [newChat] = useState<ChatMsgs>();
 
   const getChatRooms = useCallback(() => {
-    socket.emit('getChatRooms');
+    socket.emit(CHAT.ROOM.GET);
 
-    socket.on('chatRooms', (rooms: ChatRooms[]) => {
+    socket.on(CHAT.ROOM.RECEIVE, (rooms: ChatRooms[]) => {
       setChats(rooms);
     });
 
     return () => {
-      socket.off('chatRooms');
+      socket.off(CHAT.ROOM.RECEIVE);
     };
   }, [chatRoomId]);
 

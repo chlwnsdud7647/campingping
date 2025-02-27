@@ -5,16 +5,15 @@ export const CHAT = {
     GET: 'getChatRooms',
     RECEIVE: 'chatRooms',
   },
-  SENDER: {
+  USER: {
     SEND: 'sendMessage',
-    READ: 'updateRead',
-  },
-  HISTORY: {
-    GET: 'getChatHistory',
-    NEW: 'newMessage',
+    LEFT: 'userLeftRoom',
     READ: 'openChatRoom',
   },
-  USER: {
-    LEFT: 'userLeftRoom',
+  HISTORY: {
+    FETCH: 'getChatHistory',
+    FETCHED: 'chatHistory',
+    NEW: 'newMessage',
+    UPDATE: 'updateRead',
   },
 };

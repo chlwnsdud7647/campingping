@@ -27,6 +27,7 @@ import PwaModal from '@/components/PWA/PwaModal/PwaModal';
 
 import { socket } from '../../socket';
 import { ChatHistoryData, ChatMsgs } from '@/types/Chatting';
+import { CHAT } from '@/constants/chat/chatEvents';
 
 export default function ClientLayout({
   children,
@@ -113,16 +114,16 @@ export default function ClientLayout({
           setChatState(true);
           setChatRoomId(roomId);
 
-          socket.emit('getChatHistory', { roomId: chatRoomId });
+          socket.emit(CHAT.HISTORY.FETCH, { roomId: chatRoomId });
 
           const chatHistoryHandler = ({ chatHistory }: ChatHistoryData) => {
             setChatMsgs(chatHistory);
           };
 
-          socket.on('chatHistory', chatHistoryHandler);
+          socket.on(CHAT.HISTORY.FETCHED, chatHistoryHandler);
 
           return () => {
-            socket.off('chatHistory', chatHistoryHandler);
+            socket.off(CHAT.HISTORY.FETCHED, chatHistoryHandler);
           };
         } else if (userState && !roomId) {
           setChatState(true);

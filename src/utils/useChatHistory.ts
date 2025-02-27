@@ -1,3 +1,4 @@
+import { CHAT } from '@/constants/chat/chatEvents';
 import { socket } from '@/socket';
 import { chattingStore } from '@/stores/chattingState';
 import { ChatHistoryData, ChatMsgs } from '@/types/Chatting';
@@ -10,13 +11,13 @@ export const useChatHistory = () => {
 
   useEffect(() => {
     const getChatHistory = () => {
-      socket.emit('getChatHistory', { roomId: chatRoomId });
+      socket.emit(CHAT.HISTORY.FETCH, { roomId: chatRoomId });
 
-      socket.off('newMessage');
-      socket.on('newMessage', getChatHistory);
+      socket.off(CHAT.HISTORY.NEW);
+      socket.on(CHAT.HISTORY.NEW, getChatHistory);
 
       socket.on(
-        'chatHistory',
+        CHAT.HISTORY.FETCHED,
         ({ chatHistory, nextCursor }: ChatHistoryData) => {
           setChatMsgs(chatHistory);
           if (typeof nextCursor === 'number') {
@@ -29,8 +30,8 @@ export const useChatHistory = () => {
     getChatHistory();
 
     return () => {
-      socket.off('newMessage');
-      socket.off('chatHistory');
+      socket.off(CHAT.HISTORY.NEW);
+      socket.off(CHAT.HISTORY.FETCHED);
     };
   }, [chatRoomId]);
 
