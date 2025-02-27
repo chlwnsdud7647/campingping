@@ -1,4 +1,4 @@
-export const CHATS = {
+export const CHAT = {
   ROOM: {
     CREATE: 'createRoom',
     CREATED: 'roomCreated',
@@ -11,7 +11,10 @@ export const CHATS = {
   },
   HISTORY: {
     GET: 'getChatHistory',
-    RECEIVE: 'newMessage',
+    NEW: 'newMessage',
     READ: 'openChatRoom',
+  },
+  USER: {
+    LEFT: 'userLeftRoom',
   },
 };

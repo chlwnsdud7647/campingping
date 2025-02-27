@@ -1,8 +1,10 @@
 'use client';
 import Image from 'next/image';
 
-import { SetStateAction, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { socket } from '../../socket';
+
+import { CHAT } from '@/constants/chat/chatEvents';
 
 import ChatBox from './ChatBox';
 import ChatRoom from './ChatRoom/ChatRoom';
@@ -51,10 +53,10 @@ const Chat = () => {
       newRoom();
     };
 
-    socket.on('newMessage', handleNewMessage);
+    socket.on(CHAT.HISTORY.NEW, handleNewMessage);
 
     return () => {
-      socket.off('newMessage', handleNewMessage);
+      socket.off(CHAT.HISTORY.NEW, handleNewMessage);
     };
   }, [newRoom]);
 
@@ -65,10 +67,10 @@ const Chat = () => {
       }
     };
 
-    socket.on('userLeftRoom', handleUserLeftRoom);
+    socket.on(CHAT.USER.LEFT, handleUserLeftRoom);
 
     return () => {
-      socket.off('userLeftRoom', handleUserLeftRoom);
+      socket.off(CHAT.USER.LEFT, handleUserLeftRoom);
     };
   }, [getChatRooms]);
 
