@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { socket } from '@/socket';
 import { ChatRooms, ChatMsgs, ChatHistoryData } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
@@ -9,30 +9,38 @@ import { toast } from 'react-toastify';
 const useChat = () => {
   const { chatRoomId, setChatRoomId, setChatState } = chattingStore();
 
-  const [chats, setChats] = useState<ChatRooms[]>([]);
-
-  const [chatMsgs, setChatMsgs] = useState<ChatMsgs[]>([]);
   const [nextCursor, setNextCursor] = useState<number | null | undefined>(null);
   const [newChat] = useState<ChatMsgs>();
 
+  const chatMsgsRef = useRef<ChatMsgs[]>([]);
+  const setChatMsgsRef = useRef<React.Dispatch<
+    React.SetStateAction<ChatMsgs[]>
+  > | null>(null);
+
   // rooms
-  const getChatRooms = useCallback(() => {
-    socket.emit(CHAT.ROOM.GET);
+  const getChatRooms = useCallback(
+    (setChats: React.Dispatch<React.SetStateAction<ChatRooms[]>>) => {
+      socket.emit(CHAT.ROOM.GET);
 
-    socket.on(CHAT.ROOM.RECEIVE, (rooms: ChatRooms[]) => {
-      setChats(rooms);
-    });
+      socket.on(CHAT.ROOM.RECEIVE, (rooms: ChatRooms[]) => {
+        setChats(rooms);
+      });
 
-    return () => {
-      socket.off(CHAT.ROOM.RECEIVE);
-    };
-  }, [chatRoomId]);
+      return () => {
+        socket.off(CHAT.ROOM.RECEIVE);
+      };
+    },
+    [chatRoomId]
+  );
 
-  const newRoom = () => {
+  const newRoom = (
+    chats: ChatRooms[],
+    setChats: React.Dispatch<React.SetStateAction<ChatRooms[]>>
+  ) => {
     const newMsgId = newChat ? newChat.id : '';
     const roomExist = chats.some((chat) => chat.roomId === newMsgId);
 
-    if (!roomExist) getChatRooms();
+    if (!roomExist) getChatRooms(setChats);
   };
 
   const closeChats = () => {
@@ -41,25 +49,41 @@ const useChat = () => {
   };
 
   // a room
-  const getChatHistory = () => {
-    socket.emit(CHAT.HISTORY.FETCH, {
-      roomId: chatRoomId,
-    });
+  const getChatHistory = useCallback(
+    (setChatMsgs: React.Dispatch<React.SetStateAction<ChatMsgs[]>>) => {
+      if (!chatRoomId) return;
 
-    socket.off(CHAT.HISTORY.NEW);
-    socket.on(CHAT.HISTORY.NEW, getChatHistory);
+      socket.emit(CHAT.HISTORY.FETCH, {
+        roomId: chatRoomId,
+      });
 
-    socket.on(
-      CHAT.HISTORY.FETCHED,
-      ({ chatHistory, nextCursor }: ChatHistoryData) => {
-        setChatMsgs(chatHistory);
-
-        if (typeof nextCursor === 'number') {
+      socket.on(
+        CHAT.HISTORY.FETCHED,
+        ({ chatHistory, nextCursor }: ChatHistoryData) => {
+          setChatMsgs((prevMsgs) => [...chatHistory, ...prevMsgs]);
           setNextCursor(nextCursor);
         }
-      }
-    );
-  };
+      );
+    },
+    [chatRoomId]
+  );
+
+  const registerSetChatMsgs = useCallback(
+    (setChatMsgs: React.Dispatch<React.SetStateAction<ChatMsgs[]>>) => {
+      setChatMsgsRef.current = setChatMsgs;
+    },
+    []
+  );
+
+  const newMessageHandler = useCallback((newMessage: ChatMsgs) => {
+    if (setChatMsgsRef.current) {
+      setChatMsgsRef.current((prevMsgs) => {
+        const updatedMsgs = [...prevMsgs, newMessage];
+        chatMsgsRef.current = updatedMsgs;
+        return updatedMsgs;
+      });
+    }
+  }, []);
 
   const sendChatMsg = (
     inputValue: string,
@@ -74,7 +98,10 @@ const useChat = () => {
     isNewMessage.current = true;
   };
 
-  const updateRead = () => {
+  const updateRead = (
+    chatMsgs: ChatMsgs[],
+    setChatMsgs: React.Dispatch<React.SetStateAction<ChatMsgs[]>>
+  ) => {
     const updatedChatHistory = chatMsgs?.map((chat) => ({
       ...chat,
       isRead: true,
@@ -94,16 +121,15 @@ const useChat = () => {
   };
 
   return {
-    chats,
     getChatRooms,
     newRoom,
     closeChats,
-    chatMsgs,
-    setChatMsgs,
+
     nextCursor,
     setNextCursor,
     newChat,
     getChatHistory,
+    newMessageHandler,
     sendChatMsg,
     updateRead,
     getOutFromRoom,

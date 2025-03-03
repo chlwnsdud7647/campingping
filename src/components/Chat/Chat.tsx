@@ -17,13 +17,16 @@ import { userStore } from '@/stores/userState';
 
 import { onConnect, onDisconnect } from '@/utils/chat/handleSocket';
 import useChat from '@/hooks/chat/useChat';
+import { ChatRooms } from '@/types/Chatting';
 
 const Chat = () => {
   const [, setIsConnected] = useState(false);
   const [, setTransport] = useState('N/A');
   const { userState } = userStore();
 
-  const { chats, getChatRooms, newRoom, closeChats } = useChat();
+  const [chats, setChats] = useState<ChatRooms[]>([]);
+
+  const { getChatRooms, newRoom, closeChats } = useChat();
 
   const { chatState, chatRoomId, setChatRoomId, setChatNick, chatNick } =
     chattingStore();
@@ -45,12 +48,12 @@ const Chat = () => {
   }, [userState]);
 
   useEffect(() => {
-    getChatRooms();
+    getChatRooms(setChats);
   }, []);
 
   useEffect(() => {
     const handleNewMessage = () => {
-      newRoom();
+      newRoom(chats, setChats);
     };
 
     socket.on(CHAT.HISTORY.NEW, handleNewMessage);
@@ -63,7 +66,7 @@ const Chat = () => {
   useEffect(() => {
     const handleUserLeftRoom = () => {
       if (chats.length > 0) {
-        getChatRooms();
+        getChatRooms(setChats);
       }
     };
 

@@ -33,12 +33,13 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
   const { chatRoomId } = chattingStore();
   const { isMobile } = useIsMobile();
 
+  const [chatMsgs, setChatMsgs] = useState<ChatMsgs[]>([]);
+
   const {
-    chatMsgs,
-    setChatMsgs,
     setNextCursor,
     nextCursor,
     getChatHistory,
+    newMessageHandler,
     sendChatMsg,
     updateRead,
     getOutFromRoom,
@@ -58,8 +59,30 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   useEffect(() => {
     if (!chatRoomId) return;
-    getChatHistory();
+    getChatHistory(setChatMsgs);
   }, []);
+
+  useEffect(() => {
+    socket.on(CHAT.HISTORY.NEW, newMessageHandler);
+
+    return () => {
+      socket.off(CHAT.HISTORY.NEW, newMessageHandler);
+    };
+  }, [newMessageHandler]);
+
+  // useEffect(() => {
+  //   const handleNewmassage = async () => {
+  //     isNewMessage.current = true;
+  //     socket.on(CHAT.HISTORY.NEW, newMessageHandler);
+
+  //     return () => {
+  //       socket.off(CHAT.HISTORY.NEW, newMessageHandler);
+  //     };
+  //   };
+
+  //   handleNewmassage();
+  //   isNewMessage.current = false;
+  // }, []);
 
   useEffect(() => {
     if (chatContainerRef.current) {
