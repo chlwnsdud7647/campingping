@@ -77,6 +77,17 @@ const Chat = () => {
     };
   }, [chats, getChatRooms]);
 
+  const handleNewMsg = () => {
+    getChatRooms();
+  };
+  useEffect(() => {
+    socket.on(CHAT.HISTORY.NEW, handleNewMsg);
+
+    return () => {
+      socket.off(CHAT.HISTORY.NEW, handleNewMsg);
+    };
+  }, [getChatRooms]);
+
   return (
     <div
       className={`bg-white fixed bottom-0 w-full max-w-[450px] ${chatState ? 'h-5/6' : 'h-0'} rounded-t-2xl overflow-hidden flex flex-col shadow-mapListShadow transition-all duration-500 ease-in-out z-zChat`}
