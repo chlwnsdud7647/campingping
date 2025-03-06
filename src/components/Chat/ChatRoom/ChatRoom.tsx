@@ -47,7 +47,7 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   const [chatMsgs, setChatMsgs] = useState<ChatMsgs[]>([]);
   const chatMsgsRef = useRef<ChatMsgs[]>([]);
-  const [isNewMsg, setIsNewMsg] = useState(false);
+  const [, setIsNewMsg] = useState(false);
 
   const [inputValue, handleInputChange, resetInput] = useInputValue();
 
