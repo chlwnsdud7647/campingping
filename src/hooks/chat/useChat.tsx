@@ -17,14 +17,6 @@ const useChat = () => {
     socket.emit(CHAT.ROOM.GET);
   }, [chatRoomId]);
 
-  const newRoom = (chats: ChatRooms[]) => {
-    if (!newChat || newChat.id) return;
-    const newRoomId = newChat ? newChat.id : '';
-    const roomExist = chats.some((chat) => chat.roomId === newRoomId);
-
-    if (!roomExist) getChatRooms();
-  };
-
   const closeChats = () => {
     setChatState(false);
     setChatRoomId(null);
@@ -68,12 +60,13 @@ const useChat = () => {
       toast.success('채팅방이 삭제되었습니다 🚪');
 
       setChatRoomId(null);
+      getChatRooms();
     }
   };
 
   return {
     getChatRooms,
-    newRoom,
+
     closeChats,
 
     nextCursor,
