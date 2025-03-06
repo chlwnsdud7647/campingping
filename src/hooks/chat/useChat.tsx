@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { socket } from '@/socket';
-import { ChatRooms, ChatMsgs } from '@/types/Chatting';
+import { ChatRooms, ChatMsgs, UpdateMsg } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
 import { CHAT } from '@/constants/chat/chatEvents';
 import { api } from '@/utils/axios';
@@ -37,6 +37,7 @@ const useChat = () => {
     socket.emit(CHAT.HISTORY.FETCH, {
       roomId: chatRoomId,
     });
+    socket.emit(CHAT.USER.READ, { roomId: chatRoomId });
   }, [chatRoomId]);
 
   const sendChatMsg = (inputValue: string, chatRoomId: number) => {
@@ -47,15 +48,17 @@ const useChat = () => {
   };
 
   const updateRead = (
+    data: UpdateMsg,
     chatMsgs: ChatMsgs[],
     setChatMsgs: React.Dispatch<React.SetStateAction<ChatMsgs[]>>
   ) => {
-    const updatedChatHistory = chatMsgs?.map((chat) => ({
-      ...chat,
-      isRead: true,
-    }));
+    if (!data.isRead) return;
 
-    setChatMsgs(updatedChatHistory);
+    setChatMsgs((prev) =>
+      prev.map((chat) =>
+        chat.author.email === data.email ? { ...chat, isRead: true } : chat
+      )
+    );
   };
 
   const getOutFromRoom = async () => {

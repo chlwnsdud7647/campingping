@@ -13,7 +13,7 @@ import UrChatMsg from './UrChatMsg';
 
 import profileGreen from '@icons/profile_green.svg';
 
-import { ChatHistoryData, ChatMsgs } from '@/types/Chatting';
+import { ChatHistoryData, ChatMsgs, UpdateMsg } from '@/types/Chatting';
 
 import { userStore } from '@/stores/userState';
 import { chattingStore } from '@/stores/chattingState';
@@ -225,7 +225,18 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
     }
   }, [hasScrolled, nextCursor, chatRoomId, handleGetChatting]);
 
-  socket.on(CHAT.HISTORY.UPDATE, updateRead);
+  useEffect(() => {
+    const handleUpdateRead = (data: UpdateMsg) => {
+      if (data.roomId === chatRoomId) {
+        updateRead(data, chatMsgs, setChatMsgs);
+      }
+    };
+    socket.on(CHAT.HISTORY.UPDATE, handleUpdateRead);
+
+    return () => {
+      socket.off(CHAT.HISTORY.UPDATE, handleUpdateRead);
+    };
+  }, [chatRoomId]);
 
   const userLeft = () => {
     setClosed(true);

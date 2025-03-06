@@ -37,3 +37,9 @@ export interface ChatMsgs {
     nickname: string;
   };
 }
+
+export interface UpdateMsg {
+  roomId: number;
+  email: string;
+  isRead: boolean;
+}
