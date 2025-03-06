@@ -1,8 +1,10 @@
 'use client';
 import Image from 'next/image';
 
-import { SetStateAction, useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { socket } from '../../socket';
+
+import { CHAT } from '@/constants/chat/chatEvents';
 
 import ChatBox from './ChatBox';
 import ChatRoom from './ChatRoom/ChatRoom';
@@ -10,110 +12,80 @@ import ChatRoom from './ChatRoom/ChatRoom';
 import chevron from '@icons/chevron_gray.svg';
 import goToBack from '@icons/goToBack.svg';
 
-import { ChatMsgs, ChatRooms } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
 import { userStore } from '@/stores/userState';
+
+import { onConnect, onDisconnect } from '@/utils/chat/handleSocket';
+import useChat from '@/hooks/chat/useChat';
+import { ChatRooms } from '@/types/Chatting';
 
 const Chat = () => {
   const [, setIsConnected] = useState(false);
   const [, setTransport] = useState('N/A');
-  const [chats, setChats] = useState<ChatRooms[]>([]);
   const { userState } = userStore();
-  const [newChat] = useState<ChatMsgs>();
 
-  const {
-    chatState,
-    chatRoomId,
-    setChatState,
-    setChatRoomId,
-    setChatNick,
-    chatNick,
-  } = chattingStore();
+  const [chats, setChats] = useState<ChatRooms[]>([]);
 
-  const onConnect = () => {
-    if (userState) {
-      setIsConnected(true);
-      setTransport(socket.io.engine.transport.name);
+  const { getChatRooms, newRoom, closeChats } = useChat();
 
-      socket.io.engine.on(
-        'upgrade',
-        (transport: { name: SetStateAction<string> }) => {
-          setTransport(transport.name);
-        }
-      );
-    }
-  };
-
-  const onDisconnect = () => {
-    setIsConnected(false);
-    setTransport('N/A');
-  };
+  const { chatState, chatRoomId, setChatRoomId, setChatNick, chatNick } =
+    chattingStore();
 
   useEffect(() => {
+    if (!userState) return;
+
     if (socket.connected) {
-      onConnect();
+      onConnect(setIsConnected, setTransport);
     }
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
+    socket.on('connect', () => onConnect(setIsConnected, setTransport));
+    socket.on('disconnect', () => onDisconnect(setIsConnected, setTransport));
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
+      socket.off('connect');
+      socket.off('disconnect');
     };
-  }, []);
+  }, [userState]);
 
-  const getChatRooms = useCallback(() => {
-    socket.emit('getChatRooms');
-
-    socket.on('chatRooms', (rooms: ChatRooms[]) => {
-      setChats(rooms);
-    });
-
-    return () => {
-      socket.off('chatRooms');
-    };
-  }, [chatRoomId]);
+  const handleChatRooms = (rooms: ChatRooms[]) => {
+    setChats(rooms);
+  };
 
   useEffect(() => {
+    if (!socket) return;
+
     getChatRooms();
-  }, []);
 
-  const newRoom = () => {
-    const newMsgId = newChat ? newChat.id : '';
-    const roomExist = chats.some((chat) => chat.roomId === newMsgId);
+    socket.on(CHAT.ROOM.RECEIVE, handleChatRooms);
 
-    if (!roomExist) getChatRooms();
-  };
+    return () => {
+      socket.off(CHAT.ROOM.RECEIVE, handleChatRooms);
+    };
+  }, [socket]);
 
   useEffect(() => {
     const handleNewMessage = () => {
-      newRoom();
+      newRoom(chats);
     };
 
-    socket.on('newMessage', handleNewMessage);
+    socket.on(CHAT.HISTORY.NEW, handleNewMessage);
 
     return () => {
-      socket.off('newMessage', handleNewMessage);
+      socket.off(CHAT.HISTORY.NEW, handleNewMessage);
     };
   }, [newRoom]);
 
-  const closeChats = () => {
-    setChatState(false);
-    setChatRoomId(null);
-  };
-
   useEffect(() => {
     const handleUserLeftRoom = () => {
-      if (chats.length > 0) {
+      if (chats.length >= 0) {
         getChatRooms();
       }
     };
 
-    socket.on('userLeftRoom', handleUserLeftRoom);
+    socket.on(CHAT.USER.LEFT, handleUserLeftRoom);
 
     return () => {
-      socket.off('userLeftRoom', handleUserLeftRoom);
+      socket.off(CHAT.USER.LEFT, handleUserLeftRoom);
     };
   }, [getChatRooms]);
 

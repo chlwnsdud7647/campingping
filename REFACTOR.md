@@ -188,6 +188,7 @@
 - 변경 후
 
   - `fill` 속성을 사용하여 이미지가 부모 요소에 맞게 자동 조정
+  - `sizes` 추가로 warning 제거
   - `object-cover` 적용으로 비율 유지하면서 잘리지 않도록 조정
 
   ```typescript

@@ -12,6 +12,7 @@ import {
   getComments,
 } from '@utils/commentService';
 import { socket } from '@/socket';
+import { CHAT } from '@/constants/chat/chatEvents';
 import { chattingStore } from '@/stores/chattingState';
 
 interface User {
@@ -213,7 +214,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose }) => {
 
   // chatting
   const createNewChat = (email: string) => {
-    socket.emit('createRoom', {
+    socket.emit(CHAT.ROOM.CREATE, {
       email: email,
     });
   };
@@ -225,10 +226,10 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose }) => {
       setChatRoomId(roomId);
     };
 
-    socket.on('roomCreated', handleRoomCreated);
+    socket.on(CHAT.ROOM.CREATED, handleRoomCreated);
 
     return () => {
-      socket.off('roomCreated', handleRoomCreated);
+      socket.off(CHAT.ROOM.CREATED, handleRoomCreated);
     };
   }, []);
 

@@ -3,7 +3,9 @@
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { socket } from '@/socket';
-import { toast } from 'react-toastify';
+// import { toast } from 'react-toastify';
+
+import { CHAT } from '@/constants/chat/chatEvents';
 
 import Button from '@/components/Button/Button';
 import MyChatMsg from './MyChatMsg';
@@ -11,13 +13,14 @@ import UrChatMsg from './UrChatMsg';
 
 import profileGreen from '@icons/profile_green.svg';
 
-import { ChatHistoryData, ChatMsgs } from '@/types/Chatting';
+import { ChatHistoryData, ChatMsgs, UpdateMsg } from '@/types/Chatting';
 
 import { userStore } from '@/stores/userState';
 import { chattingStore } from '@/stores/chattingState';
 import useInputValue from '@/hooks/useInputValue';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { api } from '@/utils/axios';
+
+import useChat from '@/hooks/chat/useChat';
 
 interface ChatRoomProps {
   roomId: number;
@@ -30,41 +33,52 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
   const { chatRoomId } = chattingStore();
   const { isMobile } = useIsMobile();
 
+  const {
+    setNextCursor,
+    nextCursor,
+    getChatHistory,
+    sendChatMsg,
+    updateRead,
+    getOutFromRoom,
+  } = useChat();
+
+  const isInitial = useRef<boolean>(true);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const chatMsgsRef = useRef<ChatMsgs[]>([]);
   const [chatMsgs, setChatMsgs] = useState<ChatMsgs[]>([]);
-  const [nextCursor, setNextCursor] = useState<number | null | undefined>(null);
+  const chatMsgsRef = useRef<ChatMsgs[]>([]);
+  const [, setIsNewMsg] = useState(false);
 
   const [inputValue, handleInputChange, resetInput] = useInputValue();
 
-  const isNewMessage = useRef(true);
   const [hasScrolled, setHasScrolled] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
-  const isInitial = useRef<boolean>(true);
 
   const [closed, setClosed] = useState(false);
-
-  const getChatHistory = () => {
-    socket.emit('getChatHistory', {
-      roomId: chatRoomId,
-    });
-
-    socket.off('newMessage');
-    socket.on('newMessage', getChatHistory);
-
-    socket.on('chatHistory', ({ chatHistory, nextCursor }: ChatHistoryData) => {
-      setChatMsgs(chatHistory);
-
-      if (typeof nextCursor === 'number') {
-        setNextCursor(nextCursor);
-      }
-    });
-  };
 
   useEffect(() => {
     if (!chatRoomId) return;
     getChatHistory();
+  }, []);
+
+  useEffect(() => {
+    setIsNewMsg(true);
+    socket.on(CHAT.HISTORY.NEW, getChatHistory);
+    socket.on(
+      CHAT.HISTORY.FETCHED,
+      ({ chatHistory, nextCursor }: ChatHistoryData) => {
+        setChatMsgs(chatHistory);
+
+        if (typeof nextCursor === 'number') {
+          setNextCursor(nextCursor);
+        }
+      }
+    );
+
+    return () => {
+      socket.off(CHAT.HISTORY.NEW, getChatHistory);
+      socket.off(CHAT.HISTORY.FETCHED);
+    };
   }, []);
 
   useEffect(() => {
@@ -77,15 +91,6 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
     isInitial.current = false;
   }, []);
-
-  const sendChatMsg = (inputValue: string, chatRoomId: number) => {
-    socket.emit('sendMessage', {
-      message: inputValue,
-      room: chatRoomId,
-    });
-
-    isNewMessage.current = true;
-  };
 
   const handleSendMessage = async () => {
     if (chatRoomId !== null) {
@@ -120,8 +125,6 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   const handleGetChatting = ({ chatHistory, nextCursor }: ChatHistoryData) => {
     if (isInitial) {
-      // console.log('check');
-
       setChatMsgs(() => {
         const currentMsgs = chatMsgsRef.current;
 
@@ -149,7 +152,6 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   useEffect(() => {
     if (!chatContainerRef.current) return;
-    if (!isNewMessage) return;
 
     const container = chatContainerRef.current;
     container.scrollTo({
@@ -166,13 +168,12 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
     if (scrollTop === 0 && nextCursor) {
       if (debounceTimeout.current) return;
       debounceTimeout.current = setTimeout(() => {
-        isNewMessage.current = false;
-        socket.emit('getChatHistory', {
+        socket.emit(CHAT.HISTORY.FETCH, {
           roomId: chatRoomId,
           cursor: nextCursor,
         });
 
-        socket.on('chatHistory', handleGetChatting);
+        socket.on(CHAT.HISTORY.FETCHED, handleGetChatting);
 
         setTimeout(() => {
           debounceTimeout.current = null;
@@ -199,7 +200,7 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   useEffect(() => {
     if (chatContainerRef.current && hasScrolled && nextCursor) {
-      socket.emit('getChatHistory', {
+      socket.emit(CHAT.HISTORY.FETCH, {
         roomId: chatRoomId,
         cursor: nextCursor,
       });
@@ -208,12 +209,12 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
         handleGetChatting(data);
       };
 
-      socket.on('chatHistory', handleChatHistory);
+      socket.on(CHAT.HISTORY.FETCH, handleChatHistory);
 
       setHasScrolled(false);
 
       return () => {
-        socket.off('chatHistory', handleChatHistory);
+        socket.off(CHAT.HISTORY.FETCHED, handleChatHistory);
       };
     }
 
@@ -224,32 +225,24 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
     }
   }, [hasScrolled, nextCursor, chatRoomId, handleGetChatting]);
 
-  const updateRead = () => {
-    const updatedChatHistory = chatMsgs?.map((chat) => ({
-      ...chat,
-      isRead: true,
-    }));
+  useEffect(() => {
+    const handleUpdateRead = (data: UpdateMsg) => {
+      if (data.roomId === chatRoomId) {
+        updateRead(data, chatMsgs, setChatMsgs);
+      }
+    };
+    socket.on(CHAT.HISTORY.UPDATE, handleUpdateRead);
 
-    setChatMsgs(updatedChatHistory);
-  };
-
-  socket.on('updateRead', updateRead);
-
-  const getOutFromRoom = async () => {
-    const res = await api.delete(`/chats/rooms/${chatRoomId}`);
-
-    if (res.status === 200) {
-      toast.success('채팅방이 삭제되었습니다 🚪');
-
-      setChatRoomId(null);
-    }
-  };
+    return () => {
+      socket.off(CHAT.HISTORY.UPDATE, handleUpdateRead);
+    };
+  }, [chatRoomId]);
 
   const userLeft = () => {
     setClosed(true);
   };
 
-  socket.on('userLeftRoom', userLeft);
+  socket.on(CHAT.USER.LEFT, userLeft);
 
   return (
     <div className="relative h-full flex flex-col pb-12">
