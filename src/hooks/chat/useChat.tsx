@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { socket } from '@/socket';
-import { ChatRooms, ChatMsgs, ChatHistoryData } from '@/types/Chatting';
+import { ChatRooms, ChatMsgs } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
 import { CHAT } from '@/constants/chat/chatEvents';
 import { api } from '@/utils/axios';
@@ -12,35 +12,17 @@ const useChat = () => {
   const [nextCursor, setNextCursor] = useState<number | null | undefined>(null);
   const [newChat] = useState<ChatMsgs>();
 
-  const chatMsgsRef = useRef<ChatMsgs[]>([]);
-  const setChatMsgsRef = useRef<React.Dispatch<
-    React.SetStateAction<ChatMsgs[]>
-  > | null>(null);
-
   // rooms
-  const getChatRooms = useCallback(
-    (setChats: React.Dispatch<React.SetStateAction<ChatRooms[]>>) => {
-      socket.emit(CHAT.ROOM.GET);
+  const getChatRooms = useCallback(() => {
+    socket.emit(CHAT.ROOM.GET);
+  }, [chatRoomId]);
 
-      socket.on(CHAT.ROOM.RECEIVE, (rooms: ChatRooms[]) => {
-        setChats(rooms);
-      });
+  const newRoom = (chats: ChatRooms[]) => {
+    if (!newChat || newChat.id) return;
+    const newRoomId = newChat ? newChat.id : '';
+    const roomExist = chats.some((chat) => chat.roomId === newRoomId);
 
-      return () => {
-        socket.off(CHAT.ROOM.RECEIVE);
-      };
-    },
-    [chatRoomId]
-  );
-
-  const newRoom = (
-    chats: ChatRooms[],
-    setChats: React.Dispatch<React.SetStateAction<ChatRooms[]>>
-  ) => {
-    const newMsgId = newChat ? newChat.id : '';
-    const roomExist = chats.some((chat) => chat.roomId === newMsgId);
-
-    if (!roomExist) getChatRooms(setChats);
+    if (!roomExist) getChatRooms();
   };
 
   const closeChats = () => {
@@ -49,53 +31,19 @@ const useChat = () => {
   };
 
   // a room
-  const getChatHistory = useCallback(
-    (setChatMsgs: React.Dispatch<React.SetStateAction<ChatMsgs[]>>) => {
-      if (!chatRoomId) return;
+  const getChatHistory = useCallback(() => {
+    if (!chatRoomId) return;
 
-      socket.emit(CHAT.HISTORY.FETCH, {
-        roomId: chatRoomId,
-      });
+    socket.emit(CHAT.HISTORY.FETCH, {
+      roomId: chatRoomId,
+    });
+  }, [chatRoomId]);
 
-      socket.on(
-        CHAT.HISTORY.FETCHED,
-        ({ chatHistory, nextCursor }: ChatHistoryData) => {
-          setChatMsgs((prevMsgs) => [...chatHistory, ...prevMsgs]);
-          setNextCursor(nextCursor);
-        }
-      );
-    },
-    [chatRoomId]
-  );
-
-  const registerSetChatMsgs = useCallback(
-    (setChatMsgs: React.Dispatch<React.SetStateAction<ChatMsgs[]>>) => {
-      setChatMsgsRef.current = setChatMsgs;
-    },
-    []
-  );
-
-  const newMessageHandler = useCallback((newMessage: ChatMsgs) => {
-    if (setChatMsgsRef.current) {
-      setChatMsgsRef.current((prevMsgs) => {
-        const updatedMsgs = [...prevMsgs, newMessage];
-        chatMsgsRef.current = updatedMsgs;
-        return updatedMsgs;
-      });
-    }
-  }, []);
-
-  const sendChatMsg = (
-    inputValue: string,
-    chatRoomId: number,
-    isNewMessage: React.MutableRefObject<boolean>
-  ) => {
+  const sendChatMsg = (inputValue: string, chatRoomId: number) => {
     socket.emit(CHAT.USER.SEND, {
       message: inputValue,
       room: chatRoomId,
     });
-
-    isNewMessage.current = true;
   };
 
   const updateRead = (
@@ -129,7 +77,6 @@ const useChat = () => {
     setNextCursor,
     newChat,
     getChatHistory,
-    newMessageHandler,
     sendChatMsg,
     updateRead,
     getOutFromRoom,

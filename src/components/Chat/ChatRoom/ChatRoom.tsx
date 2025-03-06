@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { socket } from '@/socket';
-import { toast } from 'react-toastify';
+// import { toast } from 'react-toastify';
 
 import { CHAT } from '@/constants/chat/chatEvents';
 
@@ -33,13 +33,10 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
   const { chatRoomId } = chattingStore();
   const { isMobile } = useIsMobile();
 
-  const [chatMsgs, setChatMsgs] = useState<ChatMsgs[]>([]);
-
   const {
     setNextCursor,
     nextCursor,
     getChatHistory,
-    newMessageHandler,
     sendChatMsg,
     updateRead,
     getOutFromRoom,
@@ -47,8 +44,10 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   const isInitial = useRef<boolean>(true);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  const [chatMsgs, setChatMsgs] = useState<ChatMsgs[]>([]);
   const chatMsgsRef = useRef<ChatMsgs[]>([]);
-  const isNewMessage = useRef(true);
+  const [isNewMsg, setIsNewMsg] = useState(false);
 
   const [inputValue, handleInputChange, resetInput] = useInputValue();
 
@@ -59,30 +58,28 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   useEffect(() => {
     if (!chatRoomId) return;
-    getChatHistory(setChatMsgs);
+    getChatHistory();
   }, []);
 
   useEffect(() => {
-    socket.on(CHAT.HISTORY.NEW, newMessageHandler);
+    setIsNewMsg(true);
+    socket.on(CHAT.HISTORY.NEW, getChatHistory);
+    socket.on(
+      CHAT.HISTORY.FETCHED,
+      ({ chatHistory, nextCursor }: ChatHistoryData) => {
+        setChatMsgs(chatHistory);
+
+        if (typeof nextCursor === 'number') {
+          setNextCursor(nextCursor);
+        }
+      }
+    );
 
     return () => {
-      socket.off(CHAT.HISTORY.NEW, newMessageHandler);
+      socket.off(CHAT.HISTORY.NEW, getChatHistory);
+      socket.off(CHAT.HISTORY.FETCHED);
     };
-  }, [newMessageHandler]);
-
-  // useEffect(() => {
-  //   const handleNewmassage = async () => {
-  //     isNewMessage.current = true;
-  //     socket.on(CHAT.HISTORY.NEW, newMessageHandler);
-
-  //     return () => {
-  //       socket.off(CHAT.HISTORY.NEW, newMessageHandler);
-  //     };
-  //   };
-
-  //   handleNewmassage();
-  //   isNewMessage.current = false;
-  // }, []);
+  }, []);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -97,7 +94,7 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   const handleSendMessage = async () => {
     if (chatRoomId !== null) {
-      sendChatMsg(inputValue, chatRoomId, isNewMessage);
+      sendChatMsg(inputValue, chatRoomId);
       resetInput();
     } else {
       console.error('Chat room ID is null.');
@@ -115,7 +112,7 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
         const messageToSend = inputValue;
 
-        sendChatMsg(messageToSend, chatRoomId, isNewMessage);
+        sendChatMsg(messageToSend, chatRoomId);
 
         resetInput();
       }
@@ -128,8 +125,6 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   const handleGetChatting = ({ chatHistory, nextCursor }: ChatHistoryData) => {
     if (isInitial) {
-      // console.log('check');
-
       setChatMsgs(() => {
         const currentMsgs = chatMsgsRef.current;
 
@@ -157,7 +152,6 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
 
   useEffect(() => {
     if (!chatContainerRef.current) return;
-    if (!isNewMessage) return;
 
     const container = chatContainerRef.current;
     container.scrollTo({
@@ -174,7 +168,6 @@ const ChatRoom = ({ nickname, setChatRoomId }: ChatRoomProps) => {
     if (scrollTop === 0 && nextCursor) {
       if (debounceTimeout.current) return;
       debounceTimeout.current = setTimeout(() => {
-        isNewMessage.current = false;
         socket.emit(CHAT.HISTORY.FETCH, {
           roomId: chatRoomId,
           cursor: nextCursor,

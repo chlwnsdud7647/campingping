@@ -47,13 +47,25 @@ const Chat = () => {
     };
   }, [userState]);
 
+  const handleChatRooms = (rooms: ChatRooms[]) => {
+    setChats(rooms);
+  };
+
   useEffect(() => {
-    getChatRooms(setChats);
-  }, []);
+    if (!socket) return;
+
+    getChatRooms();
+
+    socket.on(CHAT.ROOM.RECEIVE, handleChatRooms);
+
+    return () => {
+      socket.off(CHAT.ROOM.RECEIVE, handleChatRooms);
+    };
+  }, [socket]);
 
   useEffect(() => {
     const handleNewMessage = () => {
-      newRoom(chats, setChats);
+      newRoom(chats);
     };
 
     socket.on(CHAT.HISTORY.NEW, handleNewMessage);
@@ -65,8 +77,8 @@ const Chat = () => {
 
   useEffect(() => {
     const handleUserLeftRoom = () => {
-      if (chats.length > 0) {
-        getChatRooms(setChats);
+      if (chats.length >= 0) {
+        getChatRooms();
       }
     };
 
