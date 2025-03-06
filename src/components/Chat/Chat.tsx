@@ -26,7 +26,7 @@ const Chat = () => {
 
   const [chats, setChats] = useState<ChatRooms[]>([]);
 
-  const { getChatRooms, newRoom, closeChats } = useChat();
+  const { getChatRooms, closeChats } = useChat();
 
   const { chatState, chatRoomId, setChatRoomId, setChatNick, chatNick } =
     chattingStore();
@@ -55,37 +55,36 @@ const Chat = () => {
     if (!socket) return;
 
     getChatRooms();
-
-    socket.on(CHAT.ROOM.RECEIVE, handleChatRooms);
-
-    return () => {
-      socket.off(CHAT.ROOM.RECEIVE, handleChatRooms);
-    };
   }, [socket]);
 
   useEffect(() => {
-    const handleNewMessage = () => {
-      newRoom(chats);
-    };
-
-    socket.on(CHAT.HISTORY.NEW, handleNewMessage);
-
-    return () => {
-      socket.off(CHAT.HISTORY.NEW, handleNewMessage);
-    };
-  }, [newRoom]);
-
-  useEffect(() => {
     const handleUserLeftRoom = () => {
-      if (chats.length >= 0) {
-        getChatRooms();
-      }
+      getChatRooms();
     };
 
     socket.on(CHAT.USER.LEFT, handleUserLeftRoom);
 
     return () => {
       socket.off(CHAT.USER.LEFT, handleUserLeftRoom);
+    };
+  }, [chats, getChatRooms]);
+
+  useEffect(() => {
+    socket.on(CHAT.ROOM.RECEIVE, handleChatRooms);
+
+    return () => {
+      socket.off(CHAT.ROOM.RECEIVE, handleChatRooms);
+    };
+  }, [chats, getChatRooms]);
+
+  const handleNewMsg = () => {
+    getChatRooms();
+  };
+  useEffect(() => {
+    socket.on(CHAT.HISTORY.NEW, handleNewMsg);
+
+    return () => {
+      socket.off(CHAT.HISTORY.NEW, handleNewMsg);
     };
   }, [getChatRooms]);
 
@@ -110,7 +109,10 @@ const Chat = () => {
             alt="뒤로가기 버튼"
             quality={10}
             className="absolute left-5 top-6"
-            onClick={() => setChatRoomId(null)}
+            onClick={() => {
+              setChatRoomId(null);
+              getChatRooms();
+            }}
           />
         )}
       </div>
