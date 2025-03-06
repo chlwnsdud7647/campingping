@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { socket } from '@/socket';
-import { ChatRooms, ChatMsgs, UpdateMsg } from '@/types/Chatting';
+import { ChatMsgs, UpdateMsg } from '@/types/Chatting';
 import { chattingStore } from '@/stores/chattingState';
 import { CHAT } from '@/constants/chat/chatEvents';
 import { api } from '@/utils/axios';
