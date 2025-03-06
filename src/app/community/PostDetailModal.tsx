@@ -55,7 +55,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose }) => {
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editedFields, setEditedFields] = useState<Partial<Post>>({});
 
-  const { setChatRoomId, setChatState } = chattingStore();
+  const { setChatNick, setChatRoomId, setChatState } = chattingStore();
   const [expandedComments, setExpandedComments] = useState<{
     [key: string]: boolean;
   }>({});
@@ -343,7 +343,10 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose }) => {
                     <div>
                       <p
                         className="text-xl cursor-pointer flex items-center space-x-2 mb-2"
-                        onClick={() => createNewChat(comment.user.email)}
+                        onClick={() => {
+                          createNewChat(comment.user.email);
+                          setChatNick(comment.user.nickname);
+                        }}
                       >
                         <Image
                           src={comment.user.profilUrl || profileIcon}
