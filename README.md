@@ -23,12 +23,12 @@
 | 캠핑 카드 컴포넌트                                    | 김지연 |
 | 날씨 컴포넌트(기상청 API)                             | 최준영 |
 | 현재 위치 조회(geolocation)                           | 최준영 |
-| 위시리스트 추가/삭제/조회                             |        |
+| 위시리스트 추가/삭제/조회                             | 최준영 |
 | 스크롤 최상단 이동 컴포넌트                           | 최준영 |
 | Desktop/Mobile버전 UI                                 | 김지연 |
 | Input(React-Hook-Form)/Button 공용 컴포넌트           | 김지연 |
 | 캠핑장 상세 페이지(리팩토링)                          | 김지연 |
-| 카테고리 컴포넌트(리팩토링)                           | 김지연 | 
+| 카테고리 컴포넌트(리팩토링)                           | 김지연 |
 
 # 📚 기술 스택
 
@@ -51,7 +51,5 @@
 <br>
 
 ---
-
-## 👩‍💻 [김지연 구현 기능](https://github.com/yeonn-k/campingping/blob/dev/YEONN.md)
 
 ## 👨‍💻 [최준영 구현 기능](https://github.com/yeonn-k/campingping/blob/dev/ZERO.md)
